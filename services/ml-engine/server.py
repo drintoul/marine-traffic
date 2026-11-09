@@ -106,6 +106,12 @@ TERMINAL_ZONES = [
     (49.198, -123.952, 1.5),  # Departure Bay, Nanaimo
     (49.166, -123.891, 1.5),  # Duke Point
     (49.439, -123.478, 1.5),  # Langdale
+    (48.160, -122.672, 1.5),  # Keystone, Coupeville
+    (48.117, -122.759, 1.5),  # Port Townsend
+    (47.306, -122.514, 1.5),  # Point Defiance, Tacoma
+    (47.331, -122.508, 1.5),  # Tahlequah, Vashon
+    (47.851, -122.480, 1.5),  # Port Ludlow
+    (47.979, -122.358, 1.5),  # Possession Point approach
 ]
 
 def near_terminal(lat, lon):

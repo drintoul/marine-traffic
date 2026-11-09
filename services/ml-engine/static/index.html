@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BC Maritime Copilot - Live WebSocket Monitor</title>
+    <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;text y='0.9em' font-size='90'&gt;&#9875;&lt;/text&gt;&lt;/svg&gt;">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
         header { padding: 1rem 2rem; background: #1e293b; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
         h1 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #38bdf8; }
         .tiles { display: flex; gap: 10px; padding: 0.55rem 2rem; background: #172033; border-bottom: 1px solid #334155; flex-wrap: wrap; }
@@ -44,23 +45,24 @@
         #ferry-toggle { background: rgba(30, 41, 59, 0.9); border: 1px solid #334155; padding: 7px 13px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; color: #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 5px; display: block; cursor: pointer; }
         #ferry-toggle input { margin-right: 6px; cursor: pointer; }
         #ferry-toggle label { cursor: pointer; }
-        @media (max-width: 768px) {
-            header { padding: 0.5rem 0.8rem !important; }
+        @media (max-width: 768px), (pointer: coarse) {
+            header { padding: 0.5rem 0.8rem !important; flex-wrap: wrap; }
             h1 { font-size: 1.05rem !important; }
-            .tiles { padding: 0.4rem 0.8rem; flex-wrap: nowrap; overflow-x: auto; gap: 8px; }
-            .tile { flex: 0 0 230px; font-size: 0.75rem; padding: 7px 10px; }
-            .pipeline { padding: 0.4rem 0.8rem; flex-wrap: nowrap; overflow-x: auto; gap: 4px; }
-            .pipeline .node { flex: 0 0 118px; padding: 5px 7px; }
-            .pipeline .node .label { font-size: 0.72rem; }
-            .pipeline .node .sub { font-size: 0.58rem; }
-            .flow-arrow { font-size: 0.68rem; }
-            #events { left: 10px; right: 10px; width: auto; bottom: 10px; max-height: 32%; }
+            #stats { display: inline-block; text-align: left; }
+            #status { display: inline-block; font-size: 0.68rem !important; }
+            .tiles { display: none !important; }
+            .pipeline { display: none !important; }
+            #events { position: static; left: auto; right: auto; width: auto; max-height: 25%; }
+            #retrain-btn, #clear-btn { display: none; }
+            #events .header-row { cursor: pointer; }
+            #events.collapsed #event-list { display: none; }
+            #events.collapsed { padding-bottom: 4px; }
             #fit-btn, #retrain-btn, #clear-btn, #zoom-van, #zoom-sea, #zoom-vic, #zoom-nan { font-size: 0.62rem; padding: 6px 9px; }
             footer { padding: 5px 0.8rem; font-size: 0.6rem; }
         }
-        #toast { position: absolute; bottom: 30px; left: 20px; z-index: 2000; background: rgba(20, 30, 48, 0.95); color: #e2e8f0; border: 1px solid #38bdf8; border-radius: 8px; padding: 9px 16px; font-size: 0.78rem; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); max-width: 320px; }
+        .leaflet-pane.leaflet-popup-pane { z-index: 1200; }
+        #toast { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 2000; background: rgba(20, 30, 48, 0.95); color: #e2e8f0; border: 1px solid #38bdf8; border-radius: 8px; padding: 9px 16px; font-size: 0.78rem; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); max-width: 320px; }
         footer { padding: 5px 2rem; background: #1e293b; border-top: 1px solid #334155; font-size: 0.68rem; color: #64748b; display: flex; justify-content: space-between; }
-        footer a { color: #7dd3fc; text-decoration: none; }
         .pipeline { display: flex; align-items: center; gap: 6px; padding: 0.55rem 2rem; background: #111a2b; border-bottom: 1px solid #334155; flex-wrap: wrap; }
         .node { flex: 1; text-align: center; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 7px 8px; font-size: 0.9rem; line-height: 1.35; }
         .node .label { font-weight: 700; color: #e2e8f0; }
@@ -98,13 +100,14 @@
         <div class="node out"><div class="label">What to do</div><div class="sub">advisory in Alerts panel &rarr;</div></div>
     </div>
 
+    <div id="events"><div class="header-row" onclick="const e=document.getElementById('events'); e.classList.toggle('collapsed'); this.querySelector('.caret').textContent=e.classList.contains('collapsed')?'▸':'▾'"><div class="title">ALERTS <span class="caret">▾</span></div><div class="title" style="font-weight:400; letter-spacing:0; text-transform:none; color:#64748b;">tap to hide &middot; click to locate vessel</div></div><div id="event-list"></div></div>
+
     <div id="map"></div>
-    
     <div id="toast"></div>
-    <div id="events"><div class="header-row"><div class="title">ALERTS</div><div class="title" style="font-weight:400; letter-spacing:0; text-transform:none; color:#64748b;">click to locate vessel</div></div><div id="event-list"></div></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        const isMobile = window.innerWidth <= 768 || window.matchMedia('(pointer: coarse)').matches;
         const map = L.map('map').setView([49.05, -123.35], 9);
 
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
@@ -155,7 +158,7 @@
             ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
             ws.onopen = () => {
-                document.getElementById('status').innerText = "Connected (Live WebSocket Stream)";
+                document.getElementById('status').innerText = "Connected";
                 document.getElementById('status').style.color = "#22c55e";
             };
 
@@ -360,10 +363,10 @@
                 (hidden ? ` · ${hidden} workboats hidden` : '');
         }
 
-        const fitCtl = L.control({ position: 'topleft' });
+        const fitCtl = L.control({ position: 'bottomleft' });
         fitCtl.onAdd = () => {
             const btn = L.DomUtil.create('button');
-            btn.id = 'fit-all';
+            btn.id = 'fit-btn';
             btn.innerHTML = '&#9974; SHOW ALL SHIPS';
             btn.title = 'Zoom out until every tracked vessel fits on screen';
             L.DomEvent.disableClickPropagation(btn);
@@ -395,7 +398,7 @@
             };
             return btn;
         };
-        retrainCtl.addTo(map);
+        if (!isMobile) retrainCtl.addTo(map);
 
         const clearCtl = L.control({ position: 'topright' });
         clearCtl.onAdd = () => {
@@ -409,9 +412,9 @@
             };
             return btn;
         };
-        clearCtl.addTo(map);
+        if (!isMobile) clearCtl.addTo(map);
 
-        const vanCtl = L.control({ position: 'topleft' });
+        const vanCtl = L.control({ position: 'bottomleft' });
         vanCtl.onAdd = () => {
             const btn = L.DomUtil.create('button');
             btn.id = 'zoom-van';
@@ -439,7 +442,7 @@
         };
         ferryCtl.addTo(map);
 
-        const vicCtl = L.control({ position: 'topleft' });
+        const vicCtl = L.control({ position: 'bottomleft' });
         vicCtl.onAdd = () => {
             const btn = L.DomUtil.create('button');
             btn.id = 'zoom-vic';
@@ -451,7 +454,7 @@
         };
         vicCtl.addTo(map);
 
-        const nanCtl = L.control({ position: 'topleft' });
+        const nanCtl = L.control({ position: 'bottomleft' });
         nanCtl.onAdd = () => {
             const btn = L.DomUtil.create('button');
             btn.id = 'zoom-nan';
@@ -463,7 +466,7 @@
         };
         nanCtl.addTo(map);
 
-        const seaCtl = L.control({ position: 'topleft' });
+        const seaCtl = L.control({ position: 'bottomleft' });
         seaCtl.onAdd = () => {
             const btn = L.DomUtil.create('button');
             btn.id = 'zoom-sea';
@@ -490,11 +493,8 @@
             map.flyToBounds(L.latLngBounds(pts), { padding: [50, 50], duration: 1.2 });
         }
 
+        if (isMobile) document.getElementById('events').classList.add('collapsed');
         connectWebSocket();
     </script>
-    <footer>
-        <span>&copy; 2026 David R. Rintoul &middot; <a href="https://davidrintoul.info" target="_blank" rel="noopener">davidrintoul.info</a></span>
-        <span><a href="https://github.com/drintoul/marine-traffic" target="_blank" rel="noopener">GitHub</a> &middot; Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT License</a></span>
-    </footer>
 </body>
 </html>
