@@ -44,6 +44,20 @@
         #ferry-toggle { background: rgba(30, 41, 59, 0.9); border: 1px solid #334155; padding: 7px 13px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; color: #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 5px; display: block; cursor: pointer; }
         #ferry-toggle input { margin-right: 6px; cursor: pointer; }
         #ferry-toggle label { cursor: pointer; }
+        @media (max-width: 768px) {
+            header { padding: 0.5rem 0.8rem !important; }
+            h1 { font-size: 1.05rem !important; }
+            .tiles { padding: 0.4rem 0.8rem; flex-wrap: nowrap; overflow-x: auto; gap: 8px; }
+            .tile { flex: 0 0 230px; font-size: 0.75rem; padding: 7px 10px; }
+            .pipeline { padding: 0.4rem 0.8rem; flex-wrap: nowrap; overflow-x: auto; gap: 4px; }
+            .pipeline .node { flex: 0 0 118px; padding: 5px 7px; }
+            .pipeline .node .label { font-size: 0.72rem; }
+            .pipeline .node .sub { font-size: 0.58rem; }
+            .flow-arrow { font-size: 0.68rem; }
+            #events { left: 10px; right: 10px; width: auto; bottom: 10px; max-height: 32%; }
+            #fit-btn, #retrain-btn, #clear-btn, #zoom-van, #zoom-sea, #zoom-vic, #zoom-nan { font-size: 0.62rem; padding: 6px 9px; }
+            footer { padding: 5px 0.8rem; font-size: 0.6rem; }
+        }
         #toast { position: absolute; bottom: 30px; left: 20px; z-index: 2000; background: rgba(20, 30, 48, 0.95); color: #e2e8f0; border: 1px solid #38bdf8; border-radius: 8px; padding: 9px 16px; font-size: 0.78rem; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); max-width: 320px; }
         footer { padding: 5px 2rem; background: #1e293b; border-top: 1px solid #334155; font-size: 0.68rem; color: #64748b; display: flex; justify-content: space-between; }
         footer a { color: #7dd3fc; text-decoration: none; }
