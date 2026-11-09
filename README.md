@@ -36,11 +36,22 @@ authorities:
 
 ![BC Maritime Copilot Dashboard](docs/dashboard-screenshot.png)
 
-*A live anomaly: the WSF WALLA WALLA dropped to 0 kn in the Strait of Juan de Fuca —
-the ML service flagged it within seconds and the LLM agent drafted the operational
-advisory shown in the Alerts panel.*
+*A live anomaly: the WSF CHIMACUM deviated from its own speed baseline in the Strait
+of Juan de Fuca. The ML service flagged it and the LLM agent drafted the advisory
+shown in the Alerts panel — click an alert to fly to the vessel.*
 
-![Anomaly alert with LLM advisory](docs/alert-screenshot.png)
+![Anomaly alert on the map](docs/alert-screenshot.png)
+
+![Closeup of alert with LLM advisory](docs/alert-closeup.png)
+
+> **Note:** WSF CHIMACUM is a Washington State Ferry, and ferries start and stop
+> constantly as part of scheduled service — so this alert is a good *demo*, not
+> necessarily something to worry about. That's exactly why the
+> **HIDE FERRIES & WORKBOATS** toggle exists: ferries, tugs, pilot boats and other
+> vessels that stop by design can be filtered from the map and alerts panel while
+> still being tracked underneath.
+
+---
 
 ---
 

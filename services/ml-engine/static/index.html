@@ -45,6 +45,8 @@
         #ferry-toggle input { margin-right: 6px; cursor: pointer; }
         #ferry-toggle label { cursor: pointer; }
         #toast { position: absolute; bottom: 30px; left: 20px; z-index: 2000; background: rgba(20, 30, 48, 0.95); color: #e2e8f0; border: 1px solid #38bdf8; border-radius: 8px; padding: 9px 16px; font-size: 0.78rem; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); max-width: 320px; }
+        footer { padding: 5px 2rem; background: #1e293b; border-top: 1px solid #334155; font-size: 0.68rem; color: #64748b; display: flex; justify-content: space-between; }
+        footer a { color: #7dd3fc; text-decoration: none; }
         .pipeline { display: flex; align-items: center; gap: 6px; padding: 0.55rem 2rem; background: #111a2b; border-bottom: 1px solid #334155; flex-wrap: wrap; }
         .node { flex: 1; text-align: center; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 7px 8px; font-size: 0.9rem; line-height: 1.35; }
         .node .label { font-weight: 700; color: #e2e8f0; }
@@ -57,12 +59,13 @@
         <h1>BC Maritime Traffic & Disruption Copilot</h1>
         <div style="display: flex; align-items: center;">
             <span id="stats"></span>
+            <a href="https://davidrintoul.info" target="_blank" rel="noopener" style="font-size: 0.8rem; color: #64748b; text-decoration: none; margin-right: 16px;">David R. Rintoul &#8599;</a>
             <span id="status" style="font-size: 0.875rem; color: #94a3b8;">Connecting via WebSocket...</span>
         </div>
     </header>
     <div class="tiles">
         <div class="tile"><h3>WHO IT'S FOR</h3>The port operations room — the watch officer whose job is catching the one ship in two hundred that needs a human.</div>
-        <div class="tile"><h3>WHY THE AI</h3>Without it, this page is just hundreds of moving dots. The <b>ML service</b> watches every ship every second and catches the instant one behaves abnormally. The <b>LLM service</b> instantly writes the response — the advisory a port officer would draft under pressure. You only look when something needs you.</div>
+        <div class="tile"><h3>WHY THE AI</h3>Without it, this page is just hundreds of moving dots. The <b>ML service</b> watches every ship every second and catches the instant one behaves abnormally. The <b>LLM service</b> instantly writes the response — the advisory a port officer would draft under pressure. You only look when something needs your attention.</div>
         <div class="tile"><h3>HOW DETECTION WORKS</h3>An <b>Isolation Forest</b> — an unsupervised model that learns "normal" from the live data itself. Each report is scored on speed deviation vs. the ship's own baseline, abrupt braking, and dead stops. Workboats (tugs, pilots) are exempt from speed alerts; alerts need consecutive anomalous reports. Retrains on real data via the RETRAIN ANOMALY MODEL button.</div>
         <div class="tile"><h3>WHY IT MATTERS</h3>A ship stuck where it shouldn't be blocks a channel, delays every ship behind it, and costs a port thousands per hour — catching it in seconds beats finding out late. All on-premise; no data leaves the building.</div>
         <div class="tile"><h3>READING THE MAP</h3>Green = moving normally &middot; gray = docked/anchored (sitting still is normal) &middot; flashing red = trouble &middot; faint line = recent path. Click a ship for details &amp; history, click an alert to zoom to it.<br><b>HIDE FERRIES &amp; WORKBOATS</b> filters out ferries, tugs and pilot boats — they stop and start constantly as part of normal scheduled work, so they add clutter, not signal.</div>
@@ -456,5 +459,9 @@
 
         connectWebSocket();
     </script>
+    <footer>
+        <span>&copy; 2026 David R. Rintoul &middot; <a href="https://davidrintoul.info" target="_blank" rel="noopener">davidrintoul.info</a></span>
+        <span>Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT License</a></span>
+    </footer>
 </body>
 </html>
