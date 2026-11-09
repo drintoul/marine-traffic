@@ -155,7 +155,3 @@ services/
 shared/          pydantic schemas
 docs/            screenshots
 ```
-
-## License
-
-[MIT](LICENSE)
