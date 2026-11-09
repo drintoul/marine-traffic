@@ -85,6 +85,37 @@ WORKBOAT_TYPES = {"Tug", "Towing", "Towing (large)", "Pilot vessel", "Port tende
 # Consecutive anomalous readings required before flagging
 MIN_ANOMALY_STREAK = 5
 
+# Ferry/passenger terminals — routine stops at docks aren't anomalies.
+# (lat, lon, radius_km) — speed-based checks suppressed inside, hazards still fire.
+TERMINAL_ZONES = [
+    (47.602, -122.339, 1.5),  # Colman Dock, Seattle
+    (47.623, -122.513, 1.5),  # Bainbridge Island
+    (47.560, -122.627, 1.5),  # Bremerton
+    (47.812, -122.384, 1.5),  # Edmonds
+    (47.795, -122.494, 1.5),  # Kingston
+    (47.950, -122.304, 1.5),  # Mukilteo
+    (47.973, -122.356, 1.5),  # Clinton
+    (47.523, -122.394, 1.5),  # Fauntleroy / West Seattle
+    (47.513, -122.495, 1.5),  # Vashon / Southworth
+    (48.507, -122.678, 1.5),  # Anacortes
+    (48.536, -123.015, 1.5),  # Friday Harbor
+    (48.688, -123.410, 1.5),  # Swartz Bay
+    (48.421, -123.370, 1.5),  # Victoria Inner Harbour
+    (49.007, -123.128, 1.5),  # Tsawwassen
+    (49.375, -123.273, 1.5),  # Horseshoe Bay
+    (49.198, -123.952, 1.5),  # Departure Bay, Nanaimo
+    (49.166, -123.891, 1.5),  # Duke Point
+    (49.439, -123.478, 1.5),  # Langdale
+]
+
+def near_terminal(lat, lon):
+    for tlat, tlon, r in TERMINAL_ZONES:
+        dlat = abs(lat - tlat) * 111.0
+        dlon = abs(lon - tlon) * 111.0
+        if dlat * dlat + dlon * dlon < r * r:
+            return True
+    return False
+
 def save_alert(vessel_id, mapping):
     client.hset(f"alert_state:{vessel_id}", mapping=mapping)
     client.expire(f"alert_state:{vessel_id}", 3600)
@@ -170,6 +201,9 @@ def background_stream_processor():
                         raw_anomaly = False
                     # Departure exemption: was recently stopped and is now
                     # accelerating away — normal departure, not an anomaly
+                    # Terminal geofence: stops/slowdowns at docks are scheduled work
+                    if raw_anomaly and not hazard and near_terminal(payload["lat"], payload["lon"]):
+                        raw_anomaly = False
                     if raw_anomaly and accel > 0 and expected < 5.0:
                         recent = [json.loads(i)["speed"] for i in client.lrange(track_key, 0, 5)]
                         if recent and min(recent) < 2.0:

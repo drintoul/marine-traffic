@@ -112,6 +112,7 @@ Plus rule overlays:
 - **Confirmation streak** — 5+ consecutive anomalous reports required, so routine approaches to a dock don't trip alerts.
 - **Deduplication** — an event (and LLM call) fires only on the normal → anomaly transition per vessel.
 - **Departure exemption** — a vessel that was recently stopped (< 2 kn in recent reports) with a low baseline and is now accelerating is a normal departure, not an anomaly. Without this, every vessel leaving a mooring falsely trips the detector.
+- **Terminal geofencing** — 18 ferry/passenger terminal circles (Colman Dock, Bainbridge, Edmonds, Tsawwassen, Swartz Bay, Departure Bay, etc.) suppress speed-based anomalies inside ~1.5 km. This is *correct suppression*, not masking: a stop at a dock is scheduled work by definition — the "anomaly" was never a deviation from normal behavior, it was a false positive the model can't distinguish without location context. Suppressing at terminals fixes precision exactly where the model is wrong, while a stop mid-channel or an `Aground`/`Not under command` broadcast still alerts even inside the zone.
 
 ### Edge cases handled
 
@@ -119,7 +120,7 @@ Plus rule overlays:
 |---|---|
 | Moored/anchored vessels | Baseline < 2 kn exempts them — sitting still is normal |
 | Vessel departing after being stopped | Recently-stopped + accelerating + low baseline → suppressed |
-| Routine dock approaches | 5 consecutive anomalous reports required before alerting |
+| Routine dock approaches | Terminal geofence: stops inside ~1.5 km of 18 ferry terminals are suppressed; 5 consecutive anomalous reports also required |
 | Tugs/pilots/fishing workboats | Exempt from *speed* anomalies (stop-start is their job); hazard statuses still fire |
 | AIS nav-status is stale/manual (e.g. "Anchored" while moving) | Speed is treated as truth; hazard statuses only fire on the two unambiguous emergencies |
 | Vessel sails out of coverage / stops reporting | Dot expires after 5 min; open alert auto-resolves within ~30 s |
