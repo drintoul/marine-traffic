@@ -19,8 +19,7 @@ Maritime supply chains face massive financial friction from unexpected navigatio
 
 ## Dashboard Preview
 
-> *[Placeholder: Add a screenshot of your dark-mode Leaflet.js map UI showing vessel tracking and anomaly alerts]*
-> `![BC Maritime Copilot Dashboard](docs/dashboard-screenshot.png)`
+![BC Maritime Copilot Dashboard](docs/dashboard-screenshot.png)
 
 ---
 
