@@ -140,8 +140,8 @@ async def run():
             await asyncio.sleep(10)
 
 
-if not API_KEY or API_KEY == "your_aisstream_api_key":
-    print("AISSTREAM_API_KEY is not set — register free at https://aisstream.io and update .env")
-
-print("Starting live AIS ingest service (Salish Sea bbox)...")
-asyncio.run(run())
+if __name__ == "__main__":
+    if not API_KEY or API_KEY == "your_aisstream_api_key":
+        print("AISSTREAM_API_KEY is not set — register free at https://aisstream.io and update .env")
+    print("Starting live AIS ingest service (Salish Sea bbox)...")
+    asyncio.run(run())

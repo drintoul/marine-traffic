@@ -11,7 +11,7 @@ from sklearn.ensemble import IsolationForest
 client = redis.Redis(host=os.getenv("REDIS_HOST"), port=6379, decode_responses=True)
 
 MIN_SAMPLES = 100
-MIN_VESSEL_SAMPLES = 50
+MIN_VESSEL_SAMPLES = 10
 MODEL_KEY = "ml:model"
 META_KEY = "ml:model:meta"
 

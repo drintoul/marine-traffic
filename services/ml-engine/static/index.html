@@ -95,10 +95,12 @@
 
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 16,
+            maxNativeZoom: 13,
             attribution: 'GEBCO, NOAA, National Geographic, Esri'
         }).addTo(map);
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 16
+            maxZoom: 16,
+            maxNativeZoom: 13
         }).addTo(map);
 
         let markers = {};
@@ -152,6 +154,18 @@
                     addEvent(message.data);
                 } else if (message.type === "events_init") {
                     message.data.forEach(e => addEvent(e));
+                } else if (message.type === "alerts_init") {
+                    message.data.forEach(d => {
+                        alerts[d.vessel_id] = {
+                            vessel: d.vessel_name || d.vessel_id,
+                            detail: `${parseFloat(d.speed) > parseFloat(d.expected) ? 'Up to' : 'Down to'} ${d.speed} kn (~${kmh(parseFloat(d.speed) || 0)} km/h) — normally cruises ~${d.expected} kn · ${plainStatus(d.status)}`,
+                            timestamp: parseFloat(d.timestamp) || Date.now()/1000,
+                            lat: parseFloat(d.lat), lon: parseFloat(d.lon),
+                            advisory: d.advisory || null,
+                            resolved: d.resolved === "1"
+                        };
+                    });
+                    renderAlerts();
                 } else if (message.type === "clear_all") {
                     Object.keys(markers).forEach(id => { map.removeLayer(markers[id]); delete markers[id]; });
                     Object.keys(trails).forEach(id => { if (trails[id].line) map.removeLayer(trails[id].line); delete trails[id]; });
@@ -183,7 +197,7 @@
             } else if (e.kind === 'anomaly' && e.vessel_id) {
                 alerts[e.vessel_id] = {
                     vessel: e.vessel_name || e.vessel_id,
-                    detail: `Down to ${e.speed} kn (~${kmh(e.speed)} km/h) — normally cruises ~${e.expected} kn · ${plainStatus(e.status)}`,
+                    detail: `${parseFloat(e.speed) > parseFloat(e.expected) ? 'Up to' : 'Down to'} ${e.speed} kn (~${kmh(e.speed)} km/h) — normally cruises ~${e.expected} kn · ${plainStatus(e.status)}`,
                     timestamp: e.timestamp, lat: e.lat, lon: e.lon, resolved: false
                 };
             } else if (e.kind === 'cleared' && e.vessel_id && alerts[e.vessel_id]) {
@@ -280,7 +294,7 @@
                     ${v.expected_speed_knots >= 2 ? `· normally ~${v.expected_speed_knots} kn` : ''}<br>
                     ${v.draft_meters ? `Draught: ${v.draft_meters} m<br>` : ''}
                     <span style="color:#94a3b8;font-size:0.75rem">${esc(v.vessel_id)}${v.imo ? ` · IMO ${esc(v.imo)}` : ''}</span><br>
-                    ${v.is_anomaly ? '<span class="anomaly-popup">Something unusual — LLM copilot is on it</span>' : 'Looks normal'}
+                    ${v.is_anomaly ? '<span class="anomaly-popup">Something unusual — AI is on it</span>' : 'Looks normal'}
                 `;
 
                 if (markers[v.vessel_id]) {

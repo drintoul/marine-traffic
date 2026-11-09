@@ -85,6 +85,18 @@ WORKBOAT_TYPES = {"Tug", "Towing", "Towing (large)", "Pilot vessel", "Port tende
 # Consecutive anomalous readings required before flagging
 MIN_ANOMALY_STREAK = 5
 
+def save_alert(vessel_id, mapping):
+    client.hset(f"alert_state:{vessel_id}", mapping=mapping)
+    client.expire(f"alert_state:{vessel_id}", 3600)
+
+def get_all_alerts():
+    alerts = []
+    for key in client.scan_iter("alert_state:*"):
+        data = client.hgetall(key)
+        data["vessel_id"] = key.split(":", 1)[1]
+        alerts.append(data)
+    return alerts
+
 def emit_event(kind, text, extra=None):
     event = {"kind": kind, "text": text, "timestamp": time.time()}
     if extra:
@@ -111,6 +123,11 @@ def background_stream_processor():
                     payload = json.loads(data["data"])
 
                     if stream_name == "maritime_advisory_stream":
+                        save_alert(payload["vessel_id"], {
+                            "vessel_name": payload["vessel_name"],
+                            "advisory": payload["advisory"],
+                            "advisory_at": time.time(),
+                        })
                         emit_event("advisory", f"LLM advisory issued for {payload['vessel_name']} ({payload['zone']})", extra={"advisory": payload["advisory"], "vessel_id": payload["vessel_id"], "vessel_name": payload["vessel_name"]})
                         continue
 
@@ -159,12 +176,21 @@ def background_stream_processor():
                     if is_anomaly and prev_anomaly != "1":
                         anomaly_event = {"vessel_id": payload["vessel_id"], "details": payload}
                         client.xadd("maritime_anomaly_stream", {"data": json.dumps(anomaly_event)})
-                        emit_event("anomaly", f"{payload['vessel_name']} dropped to {payload['speed_knots']} kn — baseline ~{expected} kn", extra={
+                        save_alert(payload["vessel_id"], {
+                            "vessel_name": payload["vessel_name"],
+                            "lat": payload["lat"], "lon": payload["lon"],
+                            "speed": payload["speed_knots"], "expected": expected,
+                            "status": payload["nav_status"],
+                            "timestamp": time.time(), "resolved": "0",
+                        })
+                        direction = "up to" if payload["speed_knots"] > expected else "down to"
+                        emit_event("anomaly", f"{payload['vessel_name']} {direction} {payload['speed_knots']} kn — baseline ~{expected} kn", extra={
                             "vessel_id": payload["vessel_id"], "vessel_name": payload["vessel_name"],
                             "lat": payload["lat"], "lon": payload["lon"],
                             "speed": payload["speed_knots"], "expected": expected, "status": payload["nav_status"]
                         })
                     elif not is_anomaly and prev_anomaly == "1":
+                        save_alert(payload["vessel_id"], {"resolved": "1"})
                         emit_event("cleared", f"{payload['vessel_name']}: returned to normal — {payload['speed_knots']} kn", extra={"vessel_id": payload["vessel_id"], "vessel_name": payload["vessel_name"]})
                     elif not is_anomaly and time.time() - last_telemetry_event > 2.0:
                         last_telemetry_event = time.time()
@@ -211,6 +237,7 @@ async def websocket_endpoint(websocket: WebSocket):
     initial_vessels = get_all_vessels_internal()
     await websocket.send_text(json.dumps({"type": "vessels_update", "data": initial_vessels}))
     await websocket.send_text(json.dumps({"type": "events_init", "data": list(recent_events)}))
+    await websocket.send_text(json.dumps({"type": "alerts_init", "data": get_all_alerts()}))
     try:
         while True:
             await websocket.receive_text()

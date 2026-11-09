@@ -36,6 +36,15 @@ Redis streams: `maritime_telemetry_stream` -> `maritime_anomaly_stream` ->
 `maritime_advisory_stream`. Vessel state lives in `vessel_state:*`,
 tracks in `vessel_track:*`, trained models in `ml:model*`.
 
+## Tests
+
+```bash
+pip install -r requirements-test.txt
+python3 -m pytest tests/ -q
+```
+
+Uses `fakeredis` — no Docker or real Redis needed.
+
 ## Making changes
 
 - Keep the event-driven boundaries: services talk through Redis streams, not

@@ -1,0 +1,4 @@
+pytest
+fakeredis
+httpx
+scikit-learn
