@@ -104,7 +104,16 @@ Plus rule overlays:
 
 ### The model
 
-An **Isolation Forest** trained on real accumulated telemetry via `POST /api/retrain`
+An **Isolation Forest** — unsupervised anomaly detection, no labeled examples needed.
+It builds hundreds of random decision trees that split the data on random features.
+Anomalies are rare and different, so they get "isolated" in a few splits near the
+top of a tree; normal points take many more splits. Averaging path length across
+all trees yields each report's anomaly score — short path = weird.
+
+For example, `[0.02, 0.1, 0]` (cruising at baseline) sits deep in every tree, while
+`[-0.9, -12, 1]` (moving vessel that just stopped) separates almost immediately →
+flagged. The model is direction-agnostic, so speed *jumps* above baseline are
+flagged too. It retrains on real accumulated telemetry via `POST /api/retrain`
 or the RETRAIN ANOMALY MODEL button. A global model covers all vessels; vessels with
 ≥50 stored track points also get **per-vessel models** (`ml:model:{mmsi}`) that learn
 their individual behavior. A synthetic-data model is used as fallback until enough
@@ -145,11 +154,28 @@ simulator works without either: `docker compose --profile sim up -d`.
 ## Project Layout
 
 ```
-services/
-  ais-ingest/    aisstream.io -> enriched telemetry -> maritime_telemetry_stream
-  ml-engine/     FastAPI, Isolation Forest, WebSocket dashboard, train.py
-  agent-worker/  anomaly stream -> Ollama -> maritime_advisory_stream
-  simulator/     fake-fleet fallback (profile: sim)
-shared/          pydantic schemas
-docs/            screenshots
+marine-traffic/
+├── docker-compose.yaml
+├── .env / .env.example
+├── services/
+│   ├── ais-ingest/
+│   │   ├── Dockerfile
+│   │   └── main.py          # aisstream.io -> maritime_telemetry_stream
+│   ├── ml-engine/
+│   │   ├── Dockerfile
+│   │   ├── server.py        # FastAPI + anomaly detection + WebSocket
+│   │   ├── train.py         # Isolation Forest trainer (global + per-vessel)
+│   │   └── static/
+│   │       └── index.html   # nautical-chart dashboard
+│   ├── agent-worker/
+│   │   ├── Dockerfile
+│   │   └── worker.py        # anomaly stream -> Ollama -> advisory stream
+│   └── simulator/
+│       ├── Dockerfile
+│       └── main.py          # fake-fleet fallback (profile: sim)
+├── shared/
+│   └── schemas.py           # pydantic telemetry models
+├── tests/                   # pytest + fakeredis suite
+├── data/redis/              # persisted Redis (bind mount)
+└── docs/                    # screenshots
 ```
