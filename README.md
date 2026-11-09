@@ -111,6 +111,20 @@ Plus rule overlays:
 - **Workboat exemption** — tugs, towing vessels, pilot boats, port tenders and fishing boats are exempt from *speed* anomalies (they stop and start by profession) but not hazard statuses.
 - **Confirmation streak** — 5+ consecutive anomalous reports required, so routine approaches to a dock don't trip alerts.
 - **Deduplication** — an event (and LLM call) fires only on the normal → anomaly transition per vessel.
+- **Departure exemption** — a vessel that was recently stopped (< 2 kn in recent reports) with a low baseline and is now accelerating is a normal departure, not an anomaly. Without this, every vessel leaving a mooring falsely trips the detector.
+
+### Edge cases handled
+
+| Case | Handling |
+|---|---|
+| Moored/anchored vessels | Baseline < 2 kn exempts them — sitting still is normal |
+| Vessel departing after being stopped | Recently-stopped + accelerating + low baseline → suppressed |
+| Routine dock approaches | 5 consecutive anomalous reports required before alerting |
+| Tugs/pilots/fishing workboats | Exempt from *speed* anomalies (stop-start is their job); hazard statuses still fire |
+| AIS nav-status is stale/manual (e.g. "Anchored" while moving) | Speed is treated as truth; hazard statuses only fire on the two unambiguous emergencies |
+| Vessel sails out of coverage / stops reporting | Dot expires after 5 min; open alert auto-resolves within ~30 s |
+| Vessel state expires mid-alert then returns normal | Alert auto-resolves — no "stuck" ANOMALY card for a healthy ship |
+| Speed jump vs slowdown | Alert text is direction-aware ("up to" / "down to"); overspeed events are detected but worded correctly |
 
 ### The model
 

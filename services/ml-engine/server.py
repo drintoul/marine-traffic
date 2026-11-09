@@ -108,14 +108,30 @@ def emit_event(kind, text, extra=None):
             loop_ref
         )
 
+def sweep_stale_alerts():
+    for key in client.scan_iter("alert_state:*"):
+        data = client.hgetall(key)
+        if data.get("resolved") == "1":
+            continue
+        vessel_id = key.split(":", 1)[1]
+        state = client.hgetall(f"vessel_state:{vessel_id}")
+        if not state or state.get("is_anomaly") != "1":
+            client.hset(key, "resolved", "1")
+            emit_event("cleared", f"{data.get('vessel_name') or vessel_id}: stopped reporting — alert auto-resolved",
+                       extra={"vessel_id": vessel_id, "vessel_name": data.get("vessel_name")})
+
 def background_stream_processor():
     global last_telemetry_event
     last_ids = {"maritime_telemetry_stream": "$", "maritime_advisory_stream": "$"}
+    last_sweep = 0.0
     print("ML Engine background WebSocket broadcaster active...")
     while True:
         try:
             streams = client.xread(last_ids, count=10, block=1000)
             if not streams:
+                if time.time() - last_sweep > 30:
+                    last_sweep = time.time()
+                    sweep_stale_alerts()
                 continue
             for stream_name, messages in streams:
                 for msg_id, data in messages:
@@ -152,6 +168,12 @@ def background_stream_processor():
                     raw_anomaly = m.predict(X_infer)[0] == -1 or is_stopped == 1 or hazard
                     if payload.get("ship_type") in WORKBOAT_TYPES and not hazard:
                         raw_anomaly = False
+                    # Departure exemption: was recently stopped and is now
+                    # accelerating away — normal departure, not an anomaly
+                    if raw_anomaly and accel > 0 and expected < 5.0:
+                        recent = [json.loads(i)["speed"] for i in client.lrange(track_key, 0, 5)]
+                        if recent and min(recent) < 2.0:
+                            raw_anomaly = False
 
                     state_key = f"vessel_state:{payload['vessel_id']}"
                     prev = client.hgetall(state_key)

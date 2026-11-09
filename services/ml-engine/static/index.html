@@ -228,11 +228,16 @@
                 const card = document.createElement('div');
                 card.className = 'alert-card' + (a.resolved ? ' resolved' : '');
                 const t = new Date(a.timestamp * 1000).toLocaleTimeString();
-                card.innerHTML = `<div class="alert-head"><span class="vessel"></span><span class="status-tag">${a.resolved ? 'RESOLVED' : 'ANOMALY'}</span></div>
-                    <div class="detail"><span class="time">${t}</span> <span class="detail-text"></span></div>`;
-                card.querySelector('.vessel').textContent = a.vessel;
-                card.querySelector('.detail-text').textContent = a.detail;
-                if (a.advisory) {
+                if (a.resolved) {
+                    card.innerHTML = `<div class="alert-head"><span class="vessel"></span><span><span class="time">${t}</span> <span class="status-tag">RESOLVED</span></span></div>`;
+                    card.querySelector('.vessel').textContent = a.vessel;
+                } else {
+                    card.innerHTML = `<div class="alert-head"><span class="vessel"></span><span class="status-tag">ANOMALY</span></div>
+                        <div class="detail"><span class="time">${t}</span> <span class="detail-text"></span></div>`;
+                    card.querySelector('.vessel').textContent = a.vessel;
+                    card.querySelector('.detail-text').textContent = a.detail;
+                }
+                if (!a.resolved && a.advisory) {
                     const adv = document.createElement('div');
                     adv.className = 'advisory';
                     adv.textContent = a.advisory;
@@ -475,7 +480,7 @@
     </script>
     <footer>
         <span>&copy; 2026 David R. Rintoul &middot; <a href="https://davidrintoul.info" target="_blank" rel="noopener">davidrintoul.info</a></span>
-        <span>Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT License</a></span>
+        <span><a href="https://github.com/drintoul/marine-traffic" target="_blank" rel="noopener">GitHub</a> &middot; Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT License</a></span>
     </footer>
 </body>
 </html>
