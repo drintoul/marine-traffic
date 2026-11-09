@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BC Maritime Copilot - Live WebSocket Monitor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; }
+        header { padding: 1rem 2rem; background: #1e293b; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1.25rem; font-weight: 600; color: #38bdf8; }
+        .tiles { display: flex; gap: 10px; padding: 0.55rem 2rem; background: #172033; border-bottom: 1px solid #334155; flex-wrap: wrap; }
+        .tile { flex: 1 1 200px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 9px 12px; font-size: 0.85rem; color: #a8b6c8; line-height: 1.5; }
+        .tile h3 { margin: 0 0 5px; font-size: 0.78rem; font-weight: 700; color: #38bdf8; letter-spacing: 0.07em; }
+        #map { flex: 1; width: 100%; }
+        .anomaly-popup { color: #ef4444; font-weight: bold; }
+        #events { position: absolute; bottom: 20px; right: 20px; z-index: 1000; width: 340px; max-height: 45%; overflow-y: auto; background: rgba(15, 23, 42, 0.92); border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; font-size: 0.72rem; }
+        #events .title { font-size: 0.75rem; color: #94a3b8; font-weight: 600; margin-bottom: 6px; letter-spacing: 0.05em; }
+        .vessel-dot { width: 13px; height: 13px; border-radius: 50%; background: #22c55e; border: 1.5px solid #fff; box-sizing: border-box; }
+        .vessel-dot.moored { background: #64748b; }
+        .vessel-dot.anomaly { background: #ef4444; animation: pulse 1.4s ease-out infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); } 70% { box-shadow: 0 0 0 14px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+        .alert-card { border-left: 3px solid #ef4444; background: #1a2233; border-radius: 4px; padding: 7px 9px; margin-bottom: 7px; cursor: pointer; }
+        .alert-card:hover { background: #232d42; }
+        .alert-card.resolved { border-left-color: #22c55e; opacity: 0.55; cursor: default; }
+        .alert-card .alert-head { display: flex; justify-content: space-between; align-items: baseline; }
+        .alert-card .vessel { font-weight: 700; color: #f1f5f9; font-size: 0.78rem; }
+        .alert-card .status-tag { font-size: 0.6rem; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: #7f1d1d; color: #fca5a5; }
+        .alert-card.resolved .status-tag { background: #14532d; color: #86efac; }
+        .alert-card .detail { color: #94a3b8; margin-top: 2px; }
+        .alert-card .time { color: #64748b; }
+        .alert-card .advisory { white-space: pre-wrap; color: #a5b4c9; font-size: 0.68rem; margin-top: 5px; padding: 6px; background: #0f172a; border-left: 2px solid #14532d; border-radius: 3px; line-height: 1.45; }
+        .alert-card .pending { color: #64748b; font-style: italic; margin-top: 5px; font-size: 0.68rem; }
+        #events .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        #events .header-row .title { margin-bottom: 0; }
+        #stats { font-size: 0.8rem; color: #64748b; margin-right: 16px; }
+        #fit-all { background: rgba(30, 41, 59, 0.9); color: #7dd3fc; border: 1px solid #334155; padding: 7px 13px; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        #fit-all:hover, #retrain:hover { background: #334155; }
+        #retrain { background: rgba(30, 41, 59, 0.9); color: #fbbf24; border: 1px solid #334155; padding: 7px 13px; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 5px; display: block; }
+        #clear-all { background: rgba(30, 41, 59, 0.9); color: #fca5a5; border: 1px solid #334155; padding: 7px 13px; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 5px; display: block; }
+        #clear-all:hover, #retrain:hover, #zoom-van:hover { background: #334155; }
+        #zoom-van, #zoom-sea, #zoom-vic, #zoom-nan { background: rgba(30, 41, 59, 0.9); color: #86efac; border: 1px solid #334155; padding: 7px 13px; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 5px; display: block; }
+        #zoom-sea:hover, #zoom-vic:hover, #zoom-nan:hover { background: #334155; }
+        #ferry-toggle { background: rgba(30, 41, 59, 0.9); border: 1px solid #334155; padding: 7px 13px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; color: #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 5px; display: block; cursor: pointer; }
+        #ferry-toggle input { margin-right: 6px; cursor: pointer; }
+        #ferry-toggle label { cursor: pointer; }
+        #toast { position: absolute; bottom: 30px; left: 20px; z-index: 2000; background: rgba(20, 30, 48, 0.95); color: #e2e8f0; border: 1px solid #38bdf8; border-radius: 8px; padding: 9px 16px; font-size: 0.78rem; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); max-width: 320px; }
+        .pipeline { display: flex; align-items: center; gap: 6px; padding: 0.55rem 2rem; background: #111a2b; border-bottom: 1px solid #334155; flex-wrap: wrap; }
+        .node { flex: 1; text-align: center; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 7px 8px; font-size: 0.9rem; line-height: 1.35; }
+        .node .label { font-weight: 700; color: #e2e8f0; }
+        .node .sub { color: #64748b; font-size: 0.75rem; }
+        .flow-arrow { color: #38bdf8; font-size: 0.85rem; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>BC Maritime Traffic & Disruption Copilot</h1>
+        <div style="display: flex; align-items: center;">
+            <span id="stats"></span>
+            <span id="status" style="font-size: 0.875rem; color: #94a3b8;">Connecting via WebSocket...</span>
+        </div>
+    </header>
+    <div class="tiles">
+        <div class="tile"><h3>WHO IT'S FOR</h3>The port operations room — the watch officer whose job is catching the one ship in two hundred that needs a human.</div>
+        <div class="tile"><h3>WHY THE AI</h3>Without it, this page is just hundreds of moving dots. The <b>ML service</b> watches every ship every second and catches the instant one behaves abnormally. The <b>LLM service</b> instantly writes the response — the advisory a port officer would draft under pressure. You only look when something needs you.</div>
+        <div class="tile"><h3>HOW DETECTION WORKS</h3>An <b>Isolation Forest</b> — an unsupervised model that learns "normal" from the live data itself. Each report is scored on speed deviation vs. the ship's own baseline, abrupt braking, and dead stops. Workboats (tugs, pilots) are exempt from speed alerts; alerts need consecutive anomalous reports. Retrains on real data via the RETRAIN ANOMALY MODEL button.</div>
+        <div class="tile"><h3>WHY IT MATTERS</h3>A ship stuck where it shouldn't be blocks a channel, delays every ship behind it, and costs a port thousands per hour — catching it in seconds beats finding out late. All on-premise; no data leaves the building.</div>
+        <div class="tile"><h3>READING THE MAP</h3>Green = moving normally &middot; gray = docked/anchored (sitting still is normal) &middot; flashing red = trouble &middot; faint line = recent path. Click a ship for details &amp; history, click an alert to zoom to it.<br><b>HIDE FERRIES &amp; WORKBOATS</b> filters out ferries, tugs and pilot boats — they stop and start constantly as part of normal scheduled work, so they add clutter, not signal.</div>
+    </div>
+    <div class="pipeline">
+        <div class="node src"><div class="label">Live ships</div><div class="sub">aisstream.io — real AIS positions</div></div>
+        <span class="flow-arrow">&#9654;</span>
+        <div class="node src"><div class="label">Adds context</div><div class="sub">ais-ingest · usual speed + area</div></div>
+        <span class="flow-arrow">&#9654;</span>
+        <div class="node ml"><div class="label">Detects anomalies</div><div class="sub">ml-engine · Isolation Forest</div></div>
+        <span class="flow-arrow">&#9654;</span>
+        <div class="node alert"><div class="label">Alert raised</div><div class="sub">only brand-new incidents</div></div>
+        <span class="flow-arrow">&#9654;</span>
+        <div class="node llm"><div class="label">Drafts response</div><div class="sub">agent-worker · local LLM (Ollama)</div></div>
+        <span class="flow-arrow">&#9654;</span>
+        <div class="node out"><div class="label">What to do</div><div class="sub">advisory in Alerts panel &rarr;</div></div>
+    </div>
+
+    <div id="map"></div>
+    
+    <div id="toast"></div>
+    <div id="events"><div class="header-row"><div class="title">ALERTS</div><div class="title" style="font-weight:400; letter-spacing:0; text-transform:none; color:#64748b;">click to locate vessel</div></div><div id="event-list"></div></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([49.05, -123.35], 9);
+
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 16,
+            attribution: 'GEBCO, NOAA, National Geographic, Esri'
+        }).addTo(map);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 16
+        }).addTo(map);
+
+        let markers = {};
+        let trails = {};
+        let selectedTrack = null;
+        let selectedVessel = null;
+        let lastVessels = [];
+        let hideFerries = false;
+        const FERRY_RE = /^(WSF |QUEEN OF |SPIRIT OF |COASTAL |SALISH |NORTHERN |ISLAND |KLITSA|MILL BAY|CUMBERLAND|QUINSAM|TENAKA|KAHLOKE|KWUNA|NIMPKISH|TACHEK|QUADRA QUEEN|POWELL RIVER QUEEN|HOWE SOUND QUEEN|BOWEN QUEEN)/i;
+        const WORKBOAT_TYPES = new Set(['Tug', 'Towing', 'Towing (large)', 'Pilot vessel', 'Port tender', 'Fishing']);
+        let advisoryCount = 0;
+        let ws;
+
+        const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        const kmh = kn => Math.round(kn * 1.852);
+        const plainStatus = s => ({
+            'Under way using engine': 'Underway', 'Under way sailing': 'Sailing under wind',
+            'At anchor': 'Anchored', 'Moored': 'Docked', 'Aground': 'Ran aground',
+            'Not under command': 'Cannot maneuver (emergency)',
+            'Restricted manoeuverability': 'Limited ability to maneuver',
+            'Constrained by draught': 'Deep-draught — restricted routing',
+            'Engaged in fishing': 'Fishing',
+            'Stopped / Unplanned Anchoring (Possible Drift)': 'Stopped unexpectedly',
+        })[s] || s;
+
+        function dotClass(v) {
+            if (v.is_anomaly) return 'anomaly';
+            if (['Moored', 'At anchor'].includes(v.nav_status)) return 'moored';
+            return '';
+        }
+
+        function vesselIcon(v) {
+            return L.divIcon({ className: '', html: `<div class="vessel-dot ${dotClass(v)}"></div>`, iconSize: [15, 15] });
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                document.getElementById('status').innerText = "Connected (Live WebSocket Stream)";
+                document.getElementById('status').style.color = "#22c55e";
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.type === "vessels_update") {
+                    lastVessels = message.data;
+                    renderVessels(lastVessels);
+                } else if (message.type === "event") {
+                    addEvent(message.data);
+                } else if (message.type === "events_init") {
+                    message.data.forEach(e => addEvent(e));
+                } else if (message.type === "clear_all") {
+                    Object.keys(markers).forEach(id => { map.removeLayer(markers[id]); delete markers[id]; });
+                    Object.keys(trails).forEach(id => { if (trails[id].line) map.removeLayer(trails[id].line); delete trails[id]; });
+                    if (selectedTrack) { map.removeLayer(selectedTrack); selectedTrack = null; selectedVessel = null; }
+                    alerts = {};
+                    advisoryCount = 0;
+                    renderAlerts();
+                    document.getElementById('stats').innerText = '';
+                }
+            };
+
+            ws.onclose = () => {
+                document.getElementById('status').innerText = "Disconnected. Reconnecting...";
+                document.getElementById('status').style.color = "#ef4444";
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        let alerts = {};
+
+        function addEvent(e) {
+            if (e.kind === 'advisory') {
+                advisoryCount++;
+                if (e.vessel_id) {
+                    const a = alerts[e.vessel_id] || (alerts[e.vessel_id] = { vessel: '', detail: '', timestamp: e.timestamp });
+                    a.advisory = e.advisory;
+                    if (!a.vessel) a.vessel = e.vessel_name || e.vessel_id;
+                }
+            } else if (e.kind === 'anomaly' && e.vessel_id) {
+                alerts[e.vessel_id] = {
+                    vessel: e.vessel_name || e.vessel_id,
+                    detail: `Down to ${e.speed} kn (~${kmh(e.speed)} km/h) — normally cruises ~${e.expected} kn · ${plainStatus(e.status)}`,
+                    timestamp: e.timestamp, lat: e.lat, lon: e.lon, resolved: false
+                };
+            } else if (e.kind === 'cleared' && e.vessel_id && alerts[e.vessel_id]) {
+                alerts[e.vessel_id].resolved = true;
+            }
+            renderAlerts();
+        }
+
+        function isHiddenVessel(vid, name) {
+            const v = lastVessels.find(x => x.vessel_id === vid);
+            return FERRY_RE.test(name || (v && v.vessel_name) || '') || (v && WORKBOAT_TYPES.has(v.ship_type));
+        }
+
+        function renderAlerts() {
+            const list = document.getElementById('event-list');
+            list.innerHTML = '';
+            const sorted = Object.entries(alerts)
+                .filter(([vid, a]) => !(hideFerries && isHiddenVessel(vid, a.vessel)))
+                .sort((a, b) => b[1].timestamp - a[1].timestamp).slice(0, 25);
+            if (sorted.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.cssText = 'color:#4b5a72; font-style:italic; padding:4px 0;';
+                empty.textContent = 'All clear — no anomalies detected.';
+                list.appendChild(empty);
+                return;
+            }
+            sorted.forEach(([vid, a]) => {
+                const card = document.createElement('div');
+                card.className = 'alert-card' + (a.resolved ? ' resolved' : '');
+                const t = new Date(a.timestamp * 1000).toLocaleTimeString();
+                card.innerHTML = `<div class="alert-head"><span class="vessel"></span><span class="status-tag">${a.resolved ? 'RESOLVED' : 'ANOMALY'}</span></div>
+                    <div class="detail"><span class="time">${t}</span> <span class="detail-text"></span></div>`;
+                card.querySelector('.vessel').textContent = a.vessel;
+                card.querySelector('.detail-text').textContent = a.detail;
+                if (a.advisory) {
+                    const adv = document.createElement('div');
+                    adv.className = 'advisory';
+                    adv.textContent = a.advisory;
+                    card.appendChild(adv);
+                } else if (!a.resolved) {
+                    const p = document.createElement('div');
+                    p.className = 'pending';
+                    p.textContent = 'LLM is drafting the response…';
+                    card.appendChild(p);
+                }
+                if (!a.resolved) card.onclick = () => locateVessel(vid, a);
+                list.appendChild(card);
+            });
+        }
+
+        async function showHistory(vid) {
+            if (selectedTrack) { map.removeLayer(selectedTrack); selectedTrack = null; }
+            selectedVessel = vid;
+            const m = markers[vid];
+            try {
+                const res = await fetch(`/api/vessel/${encodeURIComponent(vid)}/history`);
+                const { track } = await res.json();
+                if (selectedVessel !== vid) return;
+                if (track && track.length > 1) {
+                    selectedTrack = L.polyline(track.map(p => [p.lat, p.lon]), {
+                        color: '#fbbf24', weight: 3, opacity: 0.9, interactive: false
+                    }).addTo(map);
+                    const speeds = track.map(p => p.speed);
+                    const spanMin = Math.round((track[track.length-1].t - track[0].t) / 60);
+                    if (m && m._basePopup) {
+                        m.getPopup().setContent(m._basePopup +
+                            `<br><span style="color:#94a3b8;font-size:0.75rem">Amber line: last ${track.length} reports over ~${spanMin} min · speed range ${Math.min(...speeds)}–${Math.max(...speeds)} kn</span>`);
+                    }
+                }
+            } catch (e) { /* history fetch failed — popup still shows current state */ }
+        }
+
+        function locateVessel(vid, a) {
+            const m = markers[vid];
+            const pos = m ? m.getLatLng() : (a.lat != null ? [a.lat, a.lon] : null);
+            if (!pos) return;
+            map.flyTo(pos, 12, { duration: 1.2 });
+            if (m) setTimeout(() => { m.openPopup(); showHistory(vid); }, 1300);
+        }
+
+        function renderVessels(vessels) {
+            const seen = new Set();
+            let anomalyCount = 0;
+            let hidden = 0;
+            vessels.forEach(v => {
+                if (hideFerries && (FERRY_RE.test(v.vessel_name || '') || WORKBOAT_TYPES.has(v.ship_type))) { hidden++; return; }
+                seen.add(v.vessel_id);
+                if (v.is_anomaly) anomalyCount++;
+                const pos = [v.lat, v.lon];
+                const popupContent = `
+                    <strong>${esc(v.vessel_name)}</strong><br>
+                    ${esc(v.ship_type && v.ship_type !== 'Unknown' ? v.ship_type : 'Vessel')} · ${esc(plainStatus(v.nav_status))} · ${esc(v.zone)}<br>
+                    Speed: ${v.speed_knots} kn (~${kmh(v.speed_knots)} km/h)
+                    ${v.expected_speed_knots >= 2 ? `· normally ~${v.expected_speed_knots} kn` : ''}<br>
+                    ${v.draft_meters ? `Draught: ${v.draft_meters} m<br>` : ''}
+                    <span style="color:#94a3b8;font-size:0.75rem">${esc(v.vessel_id)}${v.imo ? ` · IMO ${esc(v.imo)}` : ''}</span><br>
+                    ${v.is_anomaly ? '<span class="anomaly-popup">Something unusual — LLM copilot is on it</span>' : 'Looks normal'}
+                `;
+
+                if (markers[v.vessel_id]) {
+                    markers[v.vessel_id].setLatLng(pos);
+                    markers[v.vessel_id]._basePopup = popupContent;
+                    if (selectedVessel !== v.vessel_id) markers[v.vessel_id].setPopupContent(popupContent);
+                    markers[v.vessel_id].setIcon(vesselIcon(v));
+                } else {
+                    const mk = L.marker(pos, { icon: vesselIcon(v) }).addTo(map).bindPopup(popupContent);
+                    mk._basePopup = popupContent;
+                    mk.on('click', () => showHistory(v.vessel_id));
+                    markers[v.vessel_id] = mk;
+                }
+
+                const trail = trails[v.vessel_id] || (trails[v.vessel_id] = { pts: [], line: null });
+                const last = trail.pts[trail.pts.length - 1];
+                if (!last || last[0] !== pos[0] || last[1] !== pos[1]) trail.pts.push(pos);
+                if (trail.pts.length > 15) trail.pts.shift();
+                const trailColor = v.is_anomaly ? '#ef4444' : '#38bdf8';
+                if (trail.line) {
+                    trail.line.setLatLngs(trail.pts);
+                    trail.line.setStyle({ color: trailColor });
+                } else if (trail.pts.length > 1) {
+                    trail.line = L.polyline(trail.pts, { color: trailColor, weight: 1.5, opacity: 0.4, interactive: false }).addTo(map);
+                }
+            });
+
+            Object.keys(markers).forEach(id => {
+                if (!seen.has(id)) {
+                    map.removeLayer(markers[id]);
+                    delete markers[id];
+                    if (trails[id] && trails[id].line) map.removeLayer(trails[id].line);
+                    delete trails[id];
+                    if (selectedVessel === id && selectedTrack) {
+                        map.removeLayer(selectedTrack);
+                        selectedTrack = null;
+                        selectedVessel = null;
+                    }
+                }
+            });
+
+            document.getElementById('stats').innerText =
+                `${vessels.length - hidden} vessels · ${anomalyCount} anomalies · ${advisoryCount} advisories` +
+                (hidden ? ` · ${hidden} workboats hidden` : '');
+        }
+
+        const fitCtl = L.control({ position: 'topleft' });
+        fitCtl.onAdd = () => {
+            const btn = L.DomUtil.create('button');
+            btn.id = 'fit-all';
+            btn.innerHTML = '&#9974; SHOW ALL SHIPS';
+            btn.title = 'Zoom out until every tracked vessel fits on screen';
+            L.DomEvent.disableClickPropagation(btn);
+            btn.onclick = fitAllVessels;
+            return btn;
+        };
+        fitCtl.addTo(map);
+
+        const retrainCtl = L.control({ position: 'topright' });
+        retrainCtl.onAdd = () => {
+            const btn = L.DomUtil.create('button');
+            btn.id = 'retrain';
+            btn.innerHTML = '&#8635; RETRAIN ANOMALY MODEL';
+            btn.title = 'Relearn what "normal" looks like from all real vessel data collected so far — improves detection over time';
+            L.DomEvent.disableClickPropagation(btn);
+            btn.onclick = async () => {
+                btn.innerHTML = '&#8635; TRAINING...';
+                try {
+                    const r = await fetch('/api/retrain', { method: 'POST' });
+                    const d = await r.json();
+                    btn.innerHTML = d.samples ? `&#8635; TRAINED (${d.samples})` : '&#8635; NEED MORE DATA';
+                    if (d.samples) showToast(
+                        `${d.algorithm} · ${d.n_estimators} trees · ${d.contamination*100}% contamination<br>` +
+                        `features: ${d.features.join(', ')}<br>` +
+                        `trained on ${d.samples} real samples · ${d.vessel_models} per-vessel models`
+                    );
+                } catch (e) { btn.innerHTML = '&#8635; FAILED'; }
+                setTimeout(() => btn.innerHTML = '&#8635; RETRAIN ANOMALY MODEL', 4000);
+            };
+            return btn;
+        };
+        retrainCtl.addTo(map);
+
+        const clearCtl = L.control({ position: 'topright' });
+        clearCtl.onAdd = () => {
+            const btn = L.DomUtil.create('button');
+            btn.id = 'clear-all';
+            btn.innerHTML = '&#10005; CLEAR ALL SHIPS &amp; HISTORY';
+            btn.title = 'Remove every vessel and its track history from the map and database — ships reappear as new reports arrive';
+            L.DomEvent.disableClickPropagation(btn);
+            btn.onclick = async () => {
+                try { await fetch('/api/clear', { method: 'POST' }); } catch (e) {}
+            };
+            return btn;
+        };
+        clearCtl.addTo(map);
+
+        const vanCtl = L.control({ position: 'topleft' });
+        vanCtl.onAdd = () => {
+            const btn = L.DomUtil.create('button');
+            btn.id = 'zoom-van';
+            btn.innerHTML = '&#9875; ZOOM TO VANCOUVER';
+            btn.title = 'Zoom in on Vancouver harbour and the Fraser River delta';
+            L.DomEvent.disableClickPropagation(btn);
+            btn.onclick = () => map.flyTo([49.29, -123.12], 12, { duration: 1.2 });
+            return btn;
+        };
+        vanCtl.addTo(map);
+
+        const ferryCtl = L.control({ position: 'topright' });
+        ferryCtl.onAdd = () => {
+            const div = L.DomUtil.create('div');
+            div.id = 'ferry-toggle';
+            div.innerHTML = '<label><input type="checkbox"> HIDE FERRIES &amp; WORKBOATS</label>';
+            div.title = 'Hide ferries, tugs, pilot boats and other vessels that stop constantly as part of normal work';
+            L.DomEvent.disableClickPropagation(div);
+            div.querySelector('input').onchange = e => {
+                hideFerries = e.target.checked;
+                renderVessels(lastVessels);
+                renderAlerts();
+            };
+            return div;
+        };
+        ferryCtl.addTo(map);
+
+        const vicCtl = L.control({ position: 'topleft' });
+        vicCtl.onAdd = () => {
+            const btn = L.DomUtil.create('button');
+            btn.id = 'zoom-vic';
+            btn.innerHTML = '&#9875; ZOOM TO VICTORIA';
+            btn.title = 'Zoom in on Victoria harbour and the Strait of Juan de Fuca';
+            L.DomEvent.disableClickPropagation(btn);
+            btn.onclick = () => map.flyTo([48.43, -123.37], 12, { duration: 1.2 });
+            return btn;
+        };
+        vicCtl.addTo(map);
+
+        const nanCtl = L.control({ position: 'topleft' });
+        nanCtl.onAdd = () => {
+            const btn = L.DomUtil.create('button');
+            btn.id = 'zoom-nan';
+            btn.innerHTML = '&#9875; ZOOM TO NANAIMO';
+            btn.title = 'Zoom in on Nanaimo harbour and Duke Point terminal';
+            L.DomEvent.disableClickPropagation(btn);
+            btn.onclick = () => map.flyTo([49.16, -123.93], 12, { duration: 1.2 });
+            return btn;
+        };
+        nanCtl.addTo(map);
+
+        const seaCtl = L.control({ position: 'topleft' });
+        seaCtl.onAdd = () => {
+            const btn = L.DomUtil.create('button');
+            btn.id = 'zoom-sea';
+            btn.innerHTML = '&#9875; ZOOM TO SEATTLE';
+            btn.title = 'Zoom in on Seattle and Puget Sound';
+            L.DomEvent.disableClickPropagation(btn);
+            btn.onclick = () => map.flyTo([47.60, -122.40], 11, { duration: 1.2 });
+            return btn;
+        };
+        seaCtl.addTo(map);
+
+        let toastTimer = null;
+        function showToast(html) {
+            const t = document.getElementById('toast');
+            t.innerHTML = html;
+            t.style.display = 'block';
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.style.display = 'none', 8000);
+        }
+
+        function fitAllVessels() {
+            const pts = Object.values(markers).map(m => m.getLatLng());
+            if (pts.length === 0) return;
+            map.flyToBounds(L.latLngBounds(pts), { padding: [50, 50], duration: 1.2 });
+        }
+
+        connectWebSocket();
+    </script>
+</body>
+</html>

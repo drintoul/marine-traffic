@@ -1,0 +1,61 @@
+services:
+  redis:
+    container_name: marine-traffic-redis
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  ml-engine:
+    container_name: marine-traffic-ml-engine
+    build: ./services/ml-engine
+    ports:
+      - "${ML_ENGINE_PORT}:8000"
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  ais-ingest:
+    container_name: marine-traffic-ais-ingest
+    build: ./services/ais-ingest
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - AISSTREAM_API_KEY=${AISSTREAM_API_KEY}
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  simulator:
+    container_name: marine-traffic-simulator
+    build: ./services/simulator
+    profiles: ["sim"]
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  agent-worker:
+    container_name: marine-traffic-agent-worker
+    build: ./services/agent-worker
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - ML_ENGINE_URL=http://ml-engine:8000
+      - OLLAMA_HOST=${OLLAMA_HOST}
+      - PYTHONUNBUFFERED=1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+      - ml-engine
