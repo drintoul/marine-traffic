@@ -308,7 +308,7 @@
                     if (selectedVessel !== v.vessel_id) markers[v.vessel_id].setPopupContent(popupContent);
                     markers[v.vessel_id].setIcon(vesselIcon(v));
                 } else {
-                    const mk = L.marker(pos, { icon: vesselIcon(v) }).addTo(map).bindPopup(popupContent);
+                    const mk = L.marker(pos, { icon: vesselIcon(v) }).addTo(map).bindPopup(popupContent, { autoPan: false });
                     mk._basePopup = popupContent;
                     mk.on('click', () => showHistory(v.vessel_id));
                     markers[v.vessel_id] = mk;
