@@ -25,7 +25,7 @@ def build_prompt(details):
 
 def main():
     print("LLM Port Operations Agent started, listening to maritime anomalies...")
-    last_id = "0-0"
+    last_id = "$"
     while True:
         try:
             streams = client.xread({"maritime_anomaly_stream": last_id}, count=5, block=3000)
