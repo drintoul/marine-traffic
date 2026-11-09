@@ -1,4 +1,14 @@
-# BC Maritime & Port Operations Disruption Copilot
+# Marine Traffic & Disruption Copilot
+
+A production-grade, containerized spatial intelligence platform engineered for real-time maritime traffic tracking, automated anomaly detection, and AI-driven operational risk assessment across coastal British Columbia.
+
+## Architecture & Tech Stack
+
+* **Telemetry Ingestion:** High-throughput Redis streams capturing live vessel positioning and AIS data feeds.
+* **Anomaly Detection:** Statistical and machine learning-driven anomaly scoring via scikit-learn's **Isolation Forest** to flag erratic vessel behavior or unexpected loitering.
+* **Edge Intelligence Agent:** Self-hosted local **Qwen 2.5 (14B)** LLM instance generating contextualized operational advisories and narrative disruption briefs.
+* **Real-Time Visualization:** Interactive **Leaflet.js** map dashboard streaming updates over **WebSockets** with variable simulation speeds.
+* **Secure Edge Routing:** Zero-trust origin protection configured via a containerized **Cloudflare Tunnel**.
 
 An event-driven, containerized AI system that watches **live maritime traffic** in the
 Salish Sea (Olympia / Puget Sound through the Strait of Georgia), detects anomalous
